@@ -1,17 +1,16 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { Auth } from "@vonage/auth";
 import { Vonage } from "@vonage/server-sdk";
 
 import { SMS_OPTIONS } from "./constants";
 import type {
 	SmsOptions,
-	SmsSendResult,
+	SmsSendRequest,
 	VonageSmsResponse,
 } from "./interfaces";
 
 @Injectable()
 export class SmsService {
-	private readonly logger = new Logger(SmsService.name);
 	private readonly client: Vonage;
 	private readonly fromName: string;
 
@@ -27,40 +26,37 @@ export class SmsService {
 		this.fromName = this.options.fromName;
 	}
 
-	public async sendOtp(phone: string, code: string): Promise<void> {
-		const result = await this.send(
-			phone,
-			`Your verification code is ${code}. It expires in 5 minutes.`,
-		);
-
-		if (!result.success) {
-			throw new Error(result.error ?? "Failed to send OTP SMS");
-		}
+	public async sendOtp(phone: string, code: string) {
+		await this.send({
+			to: phone,
+			text: `Your verification code is ${code}. It expires in 5 minutes.`,
+		});
 	}
 
-	private async send(to: string, text: string): Promise<SmsSendResult> {
-		try {
-			const response = (await this.client.sms.send({
-				to,
-				from: this.fromName,
-				text,
-			})) as unknown as VonageSmsResponse;
+	public async sendPhoneChange(phone: string, code: string) {
+		return this.send({
+			to: phone,
+			text: `Your phone number change confirmation code: ${code}`,
+		});
+	}
 
-			const failed = response.messages.find(m => Number(m.status) !== 0);
+	private async send(data: SmsSendRequest): Promise<VonageSmsResponse> {
+		const payload = {
+			to: data.to,
+			from: this.fromName,
+			text: data.text,
+		};
 
-			if (failed) {
-				const error = failed["error-text"] ?? "Unknown error";
-				this.logger.error(`SMS failed for ${to}: ${error}`);
+		const response = (await this.client.sms.send(
+			payload,
+		)) as unknown as VonageSmsResponse;
 
-				return { success: false, error };
-			}
+		const failed = response.messages.find(m => Number(m.status) !== 0);
 
-			return { success: true };
-		} catch (err) {
-			const error = err instanceof Error ? err.message : "Unknown error";
-			this.logger.error(`SMS send error for ${to}`, err);
-
-			return { success: false, error };
+		if (failed) {
+			throw new Error(failed["error-text"] ?? "Unknown error");
 		}
+
+		return response;
 	}
 }

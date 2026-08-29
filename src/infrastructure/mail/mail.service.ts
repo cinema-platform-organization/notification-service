@@ -19,4 +19,16 @@ export class MailService {
 			html,
 		});
 	}
+
+	public async sendEmailChange(email: string, code: string) {
+		const html = await this.templateService.render("email-change", {
+			code,
+		});
+
+		await this.transporter.sendMail({
+			to: email,
+			subject: "Email Change Confirmation",
+			html,
+		});
+	}
 }

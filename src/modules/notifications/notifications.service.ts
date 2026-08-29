@@ -1,4 +1,8 @@
-import { OtpRequestedEvent } from "@cinema-platform/contracts";
+import {
+	EmailChangedEvent,
+	OtpRequestedEvent,
+	PhoneChangedEvent,
+} from "@cinema-platform/contracts";
 import { Injectable } from "@nestjs/common";
 
 import { MailService } from "@/infrastructure/mail/mail.service";
@@ -14,12 +18,22 @@ export class NotificationsService {
 	public async sendOtp(data: OtpRequestedEvent) {
 		const { identifier, code, type } = data;
 
-		console.log(`OTP event received: `, data);
-
 		if (type === "email") {
 			await this.mailService.sendOtp(identifier, code);
 		} else {
 			await this.smsService.sendOtp(identifier, code);
 		}
+	}
+
+	public async sendPhoneChange(data: PhoneChangedEvent) {
+		const { phone, code } = data;
+
+		return await this.smsService.sendPhoneChange(phone, code);
+	}
+
+	public async sendEmailChange(data: EmailChangedEvent) {
+		const { email, code } = data;
+
+		return await this.mailService.sendEmailChange(email, code);
 	}
 }
