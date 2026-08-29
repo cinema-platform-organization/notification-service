@@ -21,7 +21,7 @@ export class NotificationsController {
 		const context = ctx as RmqContext;
 
 		try {
-			console.log(`OTP event received: `, data);
+			await this.notificationsService.sendOtp(data);
 
 			this.rmqService.ack(context);
 		} catch (error) {
