@@ -26,5 +26,10 @@ export default function () {
 			fromAddress: env.SMTP_FROM_ADDRESS,
 			secure: env.SMTP_SECURE,
 		},
+		vonage: {
+			apiKey: env.VONAGE_API_KEY,
+			apiSecret: env.VONAGE_API_SECRET,
+			fromName: env.VONAGE_FROM_NAME,
+		},
 	};
 }

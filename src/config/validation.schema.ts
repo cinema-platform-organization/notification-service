@@ -16,4 +16,7 @@ export default z.object({
 	SMTP_PASSWORD: z.string().nonempty(),
 	SMTP_FROM_ADDRESS: z.string().email().nonempty(),
 	SMTP_SECURE: z.string().transform(v => v === "true"),
+	VONAGE_API_KEY: z.string().nonempty(),
+	VONAGE_API_SECRET: z.string().nonempty(),
+	VONAGE_FROM_NAME: z.string().nonempty(),
 });
