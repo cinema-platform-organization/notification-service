@@ -13,6 +13,11 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 			isGlobal: true,
 			load: [configuration],
 			expandVariables: true,
+			envFilePath: [
+				`.env.${process.env.NODE_ENV}.local`,
+				`.env.${process.env.NODE_ENV}`,
+				".env",
+			],
 		}),
 		RmqModule,
 		NotificationsModule,

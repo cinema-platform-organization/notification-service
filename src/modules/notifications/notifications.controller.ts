@@ -12,8 +12,9 @@ import { NotificationsService } from "./notifications.service";
 
 @Controller()
 export class NotificationsController {
+	private readonly logger = new Logger(NotificationsController.name);
+
 	public constructor(
-		private readonly logger: Logger,
 		private readonly notificationsService: NotificationsService,
 		private readonly rmqService: RmqService,
 	) {}
