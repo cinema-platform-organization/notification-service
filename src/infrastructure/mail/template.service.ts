@@ -10,8 +10,8 @@ export class TemplateService {
 	public async render(templateName: string, context?: Record<string, any>) {
 		if (!this.cache.has(templateName)) {
 			const templatePath = path.join(
-				process.cwd(),
-				"src/infrastructure/mail/templates",
+				__dirname,
+				"templates",
 				`${templateName}.hbs`,
 			);
 
