@@ -3,13 +3,15 @@ import {
 	OtpRequestedEvent,
 	PhoneChangedEvent,
 } from "@cinema-platform/contracts";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 
 import { MailService } from "@/infrastructure/mail/mail.service";
 import { SmsService } from "@/infrastructure/sms/sms.service";
 
 @Injectable()
 export class NotificationsService {
+	private readonly logger = new Logger(NotificationsService.name);
+
 	public constructor(
 		private readonly mailService: MailService,
 		private readonly smsService: SmsService,
@@ -23,17 +25,27 @@ export class NotificationsService {
 		} else {
 			await this.smsService.sendOtp(identifier, code);
 		}
+
+		this.logger.log({ identifier, type }, "OTP sent");
 	}
 
 	public async sendPhoneChange(data: PhoneChangedEvent) {
 		const { phone, code } = data;
 
-		return await this.smsService.sendPhoneChange(phone, code);
+		const result = await this.smsService.sendPhoneChange(phone, code);
+
+		this.logger.log({ phone }, "Phone change code sent");
+
+		return result;
 	}
 
 	public async sendEmailChange(data: EmailChangedEvent) {
 		const { email, code } = data;
 
-		return await this.mailService.sendEmailChange(email, code);
+		const result = await this.mailService.sendEmailChange(email, code);
+
+		this.logger.log({ email }, "Email change code sent");
+
+		return result;
 	}
 }

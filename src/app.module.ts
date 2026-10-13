@@ -1,3 +1,4 @@
+import { ServiceLoggerModule } from "@cinema-platform/common";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
@@ -20,6 +21,7 @@ import { ObservabilityModule } from "./observability/observability.module";
 				".env",
 			],
 		}),
+		ServiceLoggerModule.forRoot("notification-service"),
 		RmqModule,
 		ObservabilityModule,
 		NotificationsModule,

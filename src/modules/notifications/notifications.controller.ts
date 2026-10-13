@@ -3,7 +3,7 @@ import type {
 	OtpRequestedEvent,
 	PhoneChangedEvent,
 } from "@cinema-platform/contracts";
-import { Controller, Logger } from "@nestjs/common";
+import { Controller } from "@nestjs/common";
 import { Ctx, EventPattern, Payload, RmqContext } from "@nestjs/microservices";
 import { InjectMetric } from "@willsoto/nestjs-prometheus";
 import { Counter, Histogram } from "prom-client";
@@ -14,10 +14,6 @@ import { NotificationsService } from "./notifications.service";
 
 @Controller()
 export class NotificationsController {
-	private readonly SERVICE_NAME: string;
-
-	private readonly logger = new Logger(NotificationsController.name);
-
 	public constructor(
 		private readonly notificationsService: NotificationsService,
 		private readonly rmqService: RmqService,
@@ -25,9 +21,7 @@ export class NotificationsController {
 		private readonly processingDuration: Histogram<string>,
 		@InjectMetric("rmq_events_total")
 		private readonly eventsTotal: Counter<string>,
-	) {
-		this.SERVICE_NAME = "notification";
-	}
+	) {}
 
 	@EventPattern("auth.otp.requested")
 	public async otpRequested(
@@ -35,35 +29,18 @@ export class NotificationsController {
 		@Ctx() ctx: RmqContext,
 	) {
 		const event = "auth.otp.requested";
-		const endTimer = this.processingDuration.startTimer({
-			service: this.SERVICE_NAME,
-			event,
-		});
+		const endTimer = this.processingDuration.startTimer({ event });
 
 		try {
 			await this.notificationsService.sendOtp(data);
 
-			this.eventsTotal.inc({
-				service: this.SERVICE_NAME,
-				event,
-				status: "success",
-			});
+			this.eventsTotal.inc({ event, status: "success" });
 
 			this.rmqService.ack(ctx, event);
 		} catch (error) {
-			this.eventsTotal.inc({
-				service: this.SERVICE_NAME,
-				event,
-				status: "error",
-			});
+			this.eventsTotal.inc({ event, status: "error" });
 
-			const message =
-				error instanceof Error ? error.message : String(error);
-
-			this.logger.error("OTP processing error: ", message);
-			this.rmqService.nack(ctx, event);
-
-			throw error;
+			await this.rmqService.retryOrDrop(ctx, event, error);
 		} finally {
 			endTimer();
 		}
@@ -75,33 +52,18 @@ export class NotificationsController {
 		@Ctx() ctx: RmqContext,
 	) {
 		const event = "account.email.changed";
-		const endTimer = this.processingDuration.startTimer({
-			service: this.SERVICE_NAME,
-			event,
-		});
+		const endTimer = this.processingDuration.startTimer({ event });
 
 		try {
 			await this.notificationsService.sendEmailChange(data);
 
-			this.eventsTotal.inc({
-				service: this.SERVICE_NAME,
-				event,
-				status: "success",
-			});
+			this.eventsTotal.inc({ event, status: "success" });
 
 			this.rmqService.ack(ctx, event);
 		} catch (error) {
-			this.eventsTotal.inc({
-				service: this.SERVICE_NAME,
-				event,
-				status: "error",
-			});
+			this.eventsTotal.inc({ event, status: "error" });
 
-			const message =
-				error instanceof Error ? error.message : String(error);
-
-			this.logger.error("Email change error: ", message);
-			this.rmqService.nack(ctx, event);
+			await this.rmqService.retryOrDrop(ctx, event, error);
 		} finally {
 			endTimer();
 		}
@@ -112,34 +74,19 @@ export class NotificationsController {
 		@Payload() data: PhoneChangedEvent,
 		@Ctx() ctx: RmqContext,
 	) {
-		const event = "account.email.changed";
-		const endTimer = this.processingDuration.startTimer({
-			service: this.SERVICE_NAME,
-			event,
-		});
+		const event = "account.phone.changed";
+		const endTimer = this.processingDuration.startTimer({ event });
 
 		try {
 			await this.notificationsService.sendPhoneChange(data);
 
-			this.eventsTotal.inc({
-				service: this.SERVICE_NAME,
-				event,
-				status: "success",
-			});
+			this.eventsTotal.inc({ event, status: "success" });
 
 			this.rmqService.ack(ctx, event);
 		} catch (error) {
-			this.eventsTotal.inc({
-				service: this.SERVICE_NAME,
-				event,
-				status: "error",
-			});
+			this.eventsTotal.inc({ event, status: "error" });
 
-			const message =
-				error instanceof Error ? error.message : String(error);
-
-			this.logger.error("Phone change error: ", message);
-			this.rmqService.nack(ctx, event);
+			await this.rmqService.retryOrDrop(ctx, event, error);
 		} finally {
 			endTimer();
 		}

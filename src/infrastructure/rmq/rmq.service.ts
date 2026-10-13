@@ -4,10 +4,10 @@ import { InjectMetric } from "@willsoto/nestjs-prometheus";
 import type { Channel, Message } from "amqplib";
 import { Counter } from "prom-client";
 
+const RETRY_HEADER = "x-retry-count";
+
 @Injectable()
 export class RmqService {
-	private readonly SERVICE_NAME: string;
-
 	private readonly logger = new Logger(RmqService.name);
 
 	public constructor(
@@ -15,9 +15,7 @@ export class RmqService {
 		private readonly ackTotal: Counter<string>,
 		@InjectMetric("rmq_events_nack_total")
 		private readonly nackTotal: Counter<string>,
-	) {
-		this.SERVICE_NAME = "notification";
-	}
+	) {}
 
 	public ack(context: RmqContext, event: string): void {
 		const channel = context.getChannelRef() as Channel;
@@ -30,17 +28,17 @@ export class RmqService {
 
 		channel.ack(msg);
 
-		this.ackTotal.inc({
-			service: this.SERVICE_NAME,
-			event,
-		});
+		this.ackTotal.inc({ event });
 
-		this.logger.debug(
-			`ACK (pattern: ${context.getPattern()}, tag: ${tag})`,
-		);
+		this.logger.debug({ pattern: context.getPattern(), event, tag }, "ACK");
 	}
 
-	public nack(context: RmqContext, event: string, requeue = false): void {
+	public nack(
+		context: RmqContext,
+		event: string,
+		requeue = false,
+		error?: unknown,
+	): void {
 		const channel = context.getChannelRef() as Channel;
 		const msg = context.getMessage() as Message;
 		const tag = msg?.fields?.deliveryTag;
@@ -51,19 +49,68 @@ export class RmqService {
 
 		channel.nack(msg, false, requeue);
 
-		this.ackTotal.inc({
-			service: this.SERVICE_NAME,
-			event,
-		});
+		this.nackTotal.inc({ event });
 
 		if (requeue) {
 			this.logger.warn(
-				`NACK response (pattern: ${context.getPattern()}, tag: ${tag})`,
+				{
+					err: error as Error,
+					pattern: context.getPattern(),
+					event,
+					tag,
+				},
+				"NACK requeue",
 			);
 		} else {
 			this.logger.error(
-				`NACK drop (pattern: ${context.getPattern()}, tag: ${tag})`,
+				{
+					err: error as Error,
+					pattern: context.getPattern(),
+					event,
+					tag,
+				},
+				"NACK drop",
 			);
 		}
+	}
+
+	/**
+	 * Republishes a failed message with a retry counter and a growing delay.
+	 * After `maxRetries` attempts the message is dropped and logged as an error.
+	 */
+	public async retryOrDrop(
+		context: RmqContext,
+		event: string,
+		error: unknown,
+		maxRetries = 3,
+	): Promise<void> {
+		const channel = context.getChannelRef() as Channel;
+		const msg = context.getMessage() as Message;
+		const tag = msg?.fields?.deliveryTag;
+
+		if (!tag) {
+			return;
+		}
+
+		const headers = msg.properties.headers ?? {};
+		const attempt = Number(headers[RETRY_HEADER] ?? 0) + 1;
+
+		if (attempt > maxRetries) {
+			this.nack(context, event, false, error);
+			return;
+		}
+
+		this.logger.warn(
+			{ err: error as Error, event, attempt, maxRetries },
+			"Event failed, scheduling retry",
+		);
+
+		await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+
+		channel.sendToQueue(msg.fields.routingKey, msg.content, {
+			...msg.properties,
+			headers: { ...headers, [RETRY_HEADER]: attempt },
+		});
+		channel.ack(msg);
 	}
 }

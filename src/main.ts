@@ -1,12 +1,17 @@
+// sort-imports-ignore
+import "./observability/tracing";
+
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { type MicroserviceOptions, Transport } from "@nestjs/microservices";
+import { Logger } from "nestjs-pino";
 
 import { AppModule } from "./app.module";
-import "./observability/tracing";
 
 async function bootstrap() {
-	const app = await NestFactory.create(AppModule);
+	const app = await NestFactory.create(AppModule, { bufferLogs: true });
+
+	app.useLogger(app.get(Logger));
 
 	const config = app.get(ConfigService);
 

@@ -13,29 +13,32 @@ import {
 			defaultMetrics: {
 				enabled: true,
 			},
+			defaultLabels: {
+				service: "notification-service",
+			},
 		}),
 	],
 	providers: [
 		makeHistogramProvider({
 			name: "rmq_event_processing_duration_seconds",
 			help: "RabbitMQ event processing duration",
-			labelNames: ["service", "event"],
+			labelNames: ["event"],
 			buckets: [0.05, 0.1, 0.2, 0.5, 1, 2, 5],
 		}),
 		makeCounterProvider({
 			name: "rmq_events_total",
 			help: "Total RMQ events processed",
-			labelNames: ["service", "event", "status"],
+			labelNames: ["event", "status"],
 		}),
 		makeCounterProvider({
 			name: "rmq_events_ack_total",
 			help: "Total ACKed RMQ events",
-			labelNames: ["service", "event"],
+			labelNames: ["event"],
 		}),
 		makeCounterProvider({
 			name: "rmq_events_nack_total",
 			help: "Total NACKed RMQ events",
-			labelNames: ["service", "event"],
+			labelNames: ["event"],
 		}),
 	],
 	exports: [
