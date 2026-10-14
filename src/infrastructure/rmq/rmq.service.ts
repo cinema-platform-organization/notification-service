@@ -74,10 +74,6 @@ export class RmqService {
 		}
 	}
 
-	/**
-	 * Republishes a failed message with a retry counter and a growing delay.
-	 * After `maxRetries` attempts the message is dropped and logged as an error.
-	 */
 	public async retryOrDrop(
 		context: RmqContext,
 		event: string,
